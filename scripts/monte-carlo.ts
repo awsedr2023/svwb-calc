@@ -20,6 +20,10 @@ function simulate(
   trials: number,
   seed: number,
 ) {
+  if (c.extra === 'optimal')
+    throw new Error(
+      'このシミュレーションは従来方針専用です。最大化は独立全探索テストで検証してください。',
+    );
   const rng = random(seed);
   const filler = c.sources.length + 1 + (c.searchOthers?.length ?? 0);
   const original: number[] = Array(c.target.copies).fill(0);

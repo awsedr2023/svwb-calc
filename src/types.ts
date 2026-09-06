@@ -16,9 +16,12 @@ export interface DrawSource {
 }
 
 export interface Config {
+  /** Per-scenario memoized state budget; omitted means 400,000. */
+  maxStates?: number;
   target: { copies: number; cost: number };
   turn: number;
-  extra: 'greedy' | 'reserve';
+  /** optimal jointly optimizes source actions and extra PP after mulligan. */
+  extra: 'optimal' | 'greedy' | 'reserve';
   sources: DrawSource[];
   /** Disjoint groups of otherwise inert cards, shared by search effects. */
   searchOthers?: number[];

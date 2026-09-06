@@ -1,24 +1,16 @@
 import { test, expect } from '@playwright/test';
 
-test('extra PP help opens, scrolls and returns focus without changing settings', async ({
+test('policy controls are removed and optimal assumptions remain accessible', async ({
   page,
 }) => {
   await page.goto('./');
-  const trigger = page.getByRole('button', { name: '方針の説明', exact: true });
-  const dialog = page.getByRole('dialog');
-  await expect(dialog).not.toBeVisible();
-  await trigger.click();
-  await expect(dialog).toBeVisible();
-  await expect(dialog).toContainText('3PPで2枚引く');
-  await expect(dialog).toContainText('5ターン目に6PP');
-  expect(await dialog.evaluate((el) => el.scrollWidth <= el.clientWidth)).toBe(
-    true,
-  );
-  await dialog.getByRole('button', { name: '閉じる' }).click();
-  await expect(dialog).not.toBeVisible();
-  await expect(trigger).toBeFocused();
-  await trigger.click();
-  await page.keyboard.press('Escape');
-  await expect(dialog).not.toBeVisible();
-  await expect(page.locator('#extra-policy')).toHaveValue('greedy');
+  await expect(page.locator('#extra-policy')).toHaveCount(0);
+  await expect(page.getByRole('button', { name: '方針の説明' })).toHaveCount(0);
+  await page
+    .getByText('プレイ方針・対応範囲を確認する', { exact: true })
+    .click();
+  await expect(page.getByText(/エクストラPPは後攻で1回/)).toBeVisible();
+  await expect(
+    page.getByText(/その時点で分かる手札と山札の残枚数/),
+  ).toBeVisible();
 });

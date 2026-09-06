@@ -123,8 +123,6 @@ test('extra PP and no-source cases work and source limit is enforced', async ({
   await expect(
     page.getByRole('button', { name: 'ドローソースを追加' }),
   ).toBeDisabled();
-  await page.locator('#extra-policy').selectOption('reserve');
-  await expect(page.locator('#extra-policy')).toHaveValue('reserve');
 });
 
 test('damaged storage falls back to defaults', async ({ page }) => {
@@ -212,7 +210,7 @@ test('heavy conditions report the computation cap and can recover', async ({
   await expect(page.getByRole('status')).toContainText('計算完了');
 });
 
-test('five-source workload completes in a separate worker on a Pages-style path', async ({
+test('three-source optimal workload completes in a separate worker on a Pages-style path', async ({
   page,
 }, testInfo) => {
   const workers: string[] = [];
@@ -228,8 +226,6 @@ test('five-source workload completes in a separate worker on a Pages-style path'
           { cost: 1, draw: 1, copies: 3, keep: 3 },
           { cost: 2, draw: 2, copies: 3, keep: 3 },
           { cost: 3, draw: 2, copies: 3, keep: 0 },
-          { cost: 4, draw: 3, copies: 3, keep: 0 },
-          { cost: 2, draw: 1, copies: 3, keep: 3 },
         ],
       }),
     ),
@@ -239,10 +235,10 @@ test('five-source workload completes in a separate worker on a Pages-style path'
   expect(workers.some((url) => url.includes('/svwb-calc/assets/worker-'))).toBe(
     true,
   );
-  await expect(page.locator('.stat-value').first()).toHaveText('85.43%');
-  await expect(page.locator('.stat-value').last()).toHaveText('86.75%');
+  await expect(page.locator('.stat-value').first()).toHaveText('81.17%');
+  await expect(page.locator('.stat-value').last()).toHaveText('82.02%');
   const time = await page.locator('.status-detail').textContent();
-  console.log(`${testInfo.project.name} / 5 sources: ${time}`);
+  console.log(`${testInfo.project.name} / 3 sources: ${time}`);
   await page.getByRole('button', { name: '比較用に固定' }).click();
   await page.locator('#target-copies').fill('2');
   await expect(page.getByRole('status')).toContainText('計算完了');

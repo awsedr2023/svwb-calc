@@ -1917,3 +1917,28 @@ footer p {
     font-size: 12px;
   }
 }
+.computation-settings {
+  margin-block: 16px;
+  padding: 18px 20px;
+}
+.computation-settings summary {
+  cursor: pointer;
+}
+.computation-settings .select-label {
+  display: block;
+  margin-top: 20px;
+  margin-bottom: 8px;
+}
+.computation-settings input[type='range'] {
+  width: 100%;
+  min-height: 44px;
+  padding: 0;
+  accent-color: var(--accent);
+}
+.computation-settings .field-note {
+  margin: 12px 0 16px;
+  line-height: 1.9;
+}
+.computation-settings .help-link {
+  padding-block: 8px;
+}

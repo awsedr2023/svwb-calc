@@ -1,10 +1,4 @@
-import {
-  useCallback,
-  useContext,
-  useEffect,
-  useRef,
-  useState,
-} from 'preact/hooks';
+import { useCallback, useContext, useEffect, useState } from 'preact/hooks';
 import { createContext } from 'preact';
 import type { ComponentChildren } from 'preact';
 import type { Config, DrawSource, Snapshot } from './types';
@@ -196,17 +190,18 @@ function ConfigSummary({ config }: { config: Config }) {
         </p>
       ))}
       <p>
-        エクストラPP：
-        {config.extra === 'greedy'
-          ? '引ける枚数が増えるとき'
-          : '目標ターンまで温存'}
+        行動方針：
+        {config.extra === 'optimal'
+          ? '成功確率を最大化（エクストラPP含む）'
+          : config.extra === 'greedy'
+            ? '引ける枚数が増えるとき'
+            : '目標ターンまで温存'}
       </p>
     </>
   );
 }
 
 export function App() {
-  const extraHelp = useRef<HTMLDialogElement>(null);
   const [config, setConfig] = useState<Config>(loadConfig);
   const [saved, setSaved] = useState(true);
   const [pinned, setPinned] = useState<Snapshot | null>(null);
@@ -771,35 +766,6 @@ export function App() {
                 </p>
               )}
             </section>
-            <section class="panel extra-panel">
-              <SectionTitle number="03">エクストラPP</SectionTitle>
-              <label class="select-label" for="extra-policy">
-                後攻での使用方針
-              </label>
-              <select
-                id="extra-policy"
-                value={config.extra}
-                onChange={(e) =>
-                  setConfig((c) => ({
-                    ...c,
-                    extra: e.currentTarget.value as Config['extra'],
-                  }))
-                }
-              >
-                <option value="greedy">引ける枚数が増えるときに使う</option>
-                <option value="reserve">目標ターンまで温存する</option>
-              </select>
-              <p class="field-note">
-                5ターン以内に1回。対象カードの使用に必要な場合は、どちらの方針でも温存します。
-              </p>
-              <button
-                type="button"
-                class="help-link"
-                onClick={() => extraHelp.current?.showModal()}
-              >
-                方針の説明
-              </button>
-            </section>
             <p class={`save-note ${saved ? '' : 'negative'}`}>
               {configError
                 ? '条件を修正すると自動保存されます'
@@ -919,6 +885,39 @@ export function App() {
                   </>
                 )}
               </div>
+              <details class="panel computation-settings">
+                <summary>詳細設定</summary>
+                <label class="select-label" for="max-states">
+                  計算量上限：{(config.maxStates ?? 400000) / 10000}万状態
+                </label>
+                <input
+                  id="max-states"
+                  type="range"
+                  min="100000"
+                  max="2000000"
+                  step="100000"
+                  value={config.maxStates ?? 400000}
+                  aria-valuetext={`${(config.maxStates ?? 400000) / 10000}万状態`}
+                  onInput={(e) =>
+                    setConfig((c) => ({
+                      ...c,
+                      maxStates: Number(e.currentTarget.value),
+                    }))
+                  }
+                />
+                <p class="field-note">
+                  1シナリオあたり10万〜200万状態（標準40万）。増やすと計算できる条件が広がりますが、メモリ消費が増え、特にスマホでは動作が重くなったりタブが終了する場合があります。1シナリオ約12秒・計算全体約25秒の時間制限は変わりません。
+                </p>
+                <button
+                  type="button"
+                  class="help-link"
+                  onClick={() =>
+                    setConfig((c) => ({ ...c, maxStates: 400000 }))
+                  }
+                >
+                  標準の40万状態に戻す
+                </button>
+              </details>
               {pinned && (
                 <div class="pinned-panel">
                   <div class="pinned-top">
@@ -1066,19 +1065,19 @@ export function App() {
                     初手に対象カードがあればキープします。対象カードがない場合に「ドローソース・サーチ・カードカテゴリをそれぞれ指定枚数までキープ」と「すべて交換」を比較します。無効なソース・カードカテゴリはキープしません。マリガンでは、最初の手札4枚を除いた山札36枚から引き直し、その後に交換したカードを山札へ戻す前提です。交換したカードそのものを引き直すことはありませんが、同名の別のカードは引くことがあります。
                   </li>
                   <li>
-                    手札から、残りPP内で合計ドロー枚数が最大の組み合わせを選びます。同点なら低い合計コストを優先。組み合わせ内は低コスト、多ドロー、登録順で使用し、1枚使うたびに選び直します。
+                    「成功確率を最大化」では、使用可能なドロー・サーチ、何も使わず次ターンに進む選択、エクストラPPの使用・温存を比較します。将来の抽選を確率で評価し、その時点で分かる手札と山札の残枚数から成功確率が最大の行動を選びます。未来の引き順は知りません。キープ枚数自体は最適化せず指定に従います。
                   </li>
                   <li>
                     対象カードは目標ターンに使用。必要なPPを確保し、対象を引いたら追加のドローソースは使いません。効果解決中や目標ターンまでの通常ドローでの山札切れは失敗です。
                   </li>
                   <li>
-                    エクストラPPは後攻で1回。6ターン目の再使用は今回の範囲外です。温存方針の違いで成功率も変わり、未来の引きを含めた最適化はしません。
+                    エクストラPPは後攻で1回。6ターン目の再使用は今回の範囲外です。対象カードの使用に必要なPPも考慮します。
                   </li>
                   <li>
                     サーチの「枚」は同名カードを複数枚取得でき、「種類」は異なるカード名を各1枚取得します。残り枚数に比例して1枚ずつ抽選し、「種類」ではそのサーチ中に選んだ種類を候補から外します。通常ドローで候補を引いた場合も残り枚数が減ります。無効なソースはサーチ対象からも外します。候補0枚のサーチは使いません。
                   </li>
                   <li>
-                    ドローとサーチは取得枚数を基準に使用します。サーチは現在の候補残数を上限とし、効果を1回使うたびに選び直します。候補が重なる複数サーチの将来の取得枚数や成功率を最適化するものではありません。
+                    計算上限に達した場合は停止し、途中の確率や別の方針の結果を代わりに表示することはありません。
                   </li>
                   <li>
                     対象とドローソースは別カードとして登録してください。盤面、相手の行動、PPブースト、進化、条件付き効果、コスト変動は扱いません。フォロワーも固定コストの即時効果として抽象化します。
@@ -1099,37 +1098,6 @@ export function App() {
           </div>
         </div>
       </main>
-      <dialog
-        ref={extraHelp}
-        class="extra-help"
-        aria-labelledby="extra-help-title"
-      >
-        <h2 id="extra-help-title">エクストラPPの使用方針</h2>
-        <h3>引ける枚数が増えるときに使う</h3>
-        <p>
-          エクストラPPを足すことで、今の手札から引ける枚数が増える場合に使います。
-        </p>
-        <p class="help-example">
-          例：目標が5ターン目で、対象が3PPの場合。2ターン目に「3PPで2枚引く」ソースがあれば、エクストラPPを使ってプレイします。
-        </p>
-        <h3>目標ターンまで温存する</h3>
-        <p>目標ターンより前には使わず、目標ターンに必要なら使います。</p>
-        <p class="help-example">
-          例：目標が5ターン目なら、2ターン目に上のソースがあっても温存します。5ターン目に、対象の使用や追加のドローに必要なら使います。
-        </p>
-        <h3>共通のルール</h3>
-        <p>
-          後攻のみ、今回の計算範囲（1〜5ターン）では1回使えます。目標ターンには対象カードを使うPPを確保します。5ターン目に6PPの対象を使う設定なら、どちらの方針でも目標ターンまで温存します。
-        </p>
-        <p>
-          未来に引くカードまで予測して、成功率が最大になる使い方を選ぶ計算ではありません。
-        </p>
-        <form method="dialog">
-          <button type="submit" autoFocus>
-            閉じる
-          </button>
-        </form>
-      </dialog>
       <footer>
         <PwaNotice />
         <p>

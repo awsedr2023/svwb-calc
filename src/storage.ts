@@ -23,7 +23,7 @@ export function migrateConfig(value: unknown): Config {
 export function loadConfig(): Config {
   try {
     const value = localStorage.getItem(STORAGE_KEY);
-    if (value) return migrateConfig(JSON.parse(value));
+    if (value) return { ...migrateConfig(JSON.parse(value)), extra: 'optimal' };
   } catch {
     /* Old, malformed, or unavailable storage must not block the page. */
   }
@@ -42,6 +42,7 @@ export function saveConfig(config: Config): boolean {
 export function calculationKey(config: Config): string {
   // All five target horizons are computed together. Selecting a turn is free.
   return JSON.stringify({
+    maxStates: config.maxStates ?? 400000,
     target: config.target,
     extra: config.extra,
     sources: config.sources,

@@ -5,7 +5,7 @@ import type { Config, DrawSource, Progress, Result, ResultRow } from './types';
 export const DEFAULT_CONFIG: Config = {
   target: { copies: 3, cost: 3 },
   turn: 5,
-  extra: 'greedy',
+  extra: 'optimal',
   sources: [{ cost: 2, draw: 2, copies: 3, keep: 0, enabled: true }],
 };
 
@@ -23,7 +23,9 @@ export function validateConfig(value: unknown): Config {
   }
   if (!integer(c.turn, 1, 5))
     throw new Error('目標ターンは1〜5で入力してください。');
-  if (!['greedy', 'reserve'].includes(c.extra))
+  if (c.maxStates !== undefined && !integer(c.maxStates, 100000, 2000000))
+    throw new Error('計算量上限は10万〜200万状態で指定してください。');
+  if (!['optimal', 'greedy', 'reserve'].includes(c.extra))
     throw new Error('エクストラPPの方針が不正です。');
   if (!Array.isArray(c.sources) || c.sources.length > 5)
     throw new Error('ドローソースは最大5種類です。');
@@ -376,7 +378,7 @@ export function calculateScenario(
     horizon = config.turn,
     back = false,
     keep = true,
-    maxStates = 400000,
+    maxStates = config.maxStates ?? 400000,
     maxMs = 12000,
     initial,
   }: ScenarioOptions = {},
@@ -486,6 +488,48 @@ export function calculateScenario(
               ? selectedTypes | (1 << i)
               : 0,
           );
+      }
+    } else if (config.extra === 'optimal') {
+      // Bellman decision node: maximize expected success BEFORE seeing the next
+      // random card. Waiting preserves held sources and the unused extra PP.
+      value =
+        turn < horizon ? solve(deck, hand, turn + 1, turn + 1, extra, 1) : 0;
+      for (let i = 0; i < config.sources.length && value < 1; i++) {
+        const source = config.sources[i];
+        if (!hand[i + 1]) continue;
+        const amount =
+          source.kind === 'search'
+            ? searchCapacity(config, source, deck)
+            : source.draw;
+        if (!amount) continue;
+        for (const activate of [false, true]) {
+          if (activate && !extra) continue;
+          const remainingPP = pp + Number(activate) - source.cost;
+          const remainingExtra = extra && !activate;
+          if (remainingPP < 0) continue;
+          // Even after finding the target, its PP must still be available.
+          if (
+            (turn === horizon ? remainingPP : horizon) +
+              Number(remainingExtra) <
+            config.target.cost
+          )
+            continue;
+          const nextHand = [...hand];
+          nextHand[i + 1]--;
+          value = Math.max(
+            value,
+            solve(
+              deck,
+              nextHand,
+              turn,
+              remainingPP,
+              remainingExtra,
+              amount,
+              source.kind === 'search' ? i : -1,
+            ),
+          );
+          if (value === 1) break;
+        }
       }
     } else {
       let heldState = 0;
