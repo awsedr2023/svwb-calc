@@ -22,6 +22,10 @@ export interface Config {
   sources: DrawSource[];
   /** Disjoint groups of otherwise inert cards, shared by search effects. */
   searchOthers?: number[];
+  /** Per-group opening retention cap; missing entries default to zero. */
+  searchOtherKeeps?: number[];
+  /** Missing entries default to enabled. Disabled copies become inert filler. */
+  searchOtherEnabled?: boolean[];
 }
 
 export type SeriesKey =

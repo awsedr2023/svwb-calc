@@ -46,6 +46,8 @@ export function calculationKey(config: Config): string {
     extra: config.extra,
     sources: config.sources,
     searchOthers: config.searchOthers,
+    searchOtherKeeps: config.searchOtherKeeps,
+    searchOtherEnabled: config.searchOtherEnabled,
   });
 }
 
@@ -70,6 +72,10 @@ export function removeSearchOther(config: Config, index: number): Config {
   return {
     ...config,
     searchOthers: config.searchOthers?.filter((_, i) => i !== index),
+    searchOtherKeeps: config.searchOtherKeeps?.filter((_, i) => i !== index),
+    searchOtherEnabled: config.searchOtherEnabled?.filter(
+      (_, i) => i !== index,
+    ),
     sources: config.sources.map((s) => ({
       ...s,
       search: s.search && {

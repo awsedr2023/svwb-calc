@@ -6,7 +6,7 @@ export const DEFAULT_CONFIG: Config = {
   target: { copies: 3, cost: 3 },
   turn: 5,
   extra: 'greedy',
-  sources: [{ cost: 2, draw: 2, copies: 3, keep: 3, enabled: true }],
+  sources: [{ cost: 2, draw: 2, copies: 3, keep: 0, enabled: true }],
 };
 
 export function validateConfig(value: unknown): Config {
@@ -34,8 +34,24 @@ export function validateConfig(value: unknown): Config {
       c.searchOthers.some((n) => !integer(n, 1, 40)))
   ) {
     throw new Error(
-      'その他のサーチ候補は最大3グループ、各1〜40枚で入力してください。',
+      'カードカテゴリは最大3グループ、各1〜40枚で入力してください。',
     );
+  }
+  if (
+    c.searchOtherKeeps !== undefined &&
+    (!Array.isArray(c.searchOtherKeeps) ||
+      c.searchOtherKeeps.length > (c.searchOthers?.length ?? 0) ||
+      c.searchOtherKeeps.some((n) => !integer(n, 0, 3)))
+  ) {
+    throw new Error('その他の初手保持は各グループ0〜3枚で指定してください。');
+  }
+  if (
+    c.searchOtherEnabled !== undefined &&
+    (!Array.isArray(c.searchOtherEnabled) ||
+      c.searchOtherEnabled.length > (c.searchOthers?.length ?? 0) ||
+      c.searchOtherEnabled.some((n) => typeof n !== 'boolean'))
+  ) {
+    throw new Error('カードカテゴリの有効・無効の指定が不正です。');
   }
   for (const s of c.sources) {
     if (
@@ -72,11 +88,15 @@ export function validateConfig(value: unknown): Config {
   if (
     c.target.copies +
       enabledSources(c).reduce((n, s) => n + s.copies, 0) +
-      (c.searchOthers ?? []).reduce((n, copies) => n + copies, 0) >
+      (c.searchOthers ?? []).reduce(
+        (n, copies, i) =>
+          n + (c.searchOtherEnabled?.[i] === false ? 0 : copies),
+        0,
+      ) >
     40
   ) {
     throw new Error(
-      '対象カード・有効なソース・その他のサーチ候補を、合計40枚以内にしてください。',
+      '対象カード・有効なソース・カードカテゴリを、合計40枚以内にしてください。',
     );
   }
   return c;
@@ -93,6 +113,9 @@ function activeConfig(config: Config): Config {
     .map((_, i) => i)
     .filter((i) => config.sources[i].enabled !== false);
   const hasSearch = indices.some((i) => config.sources[i].kind === 'search');
+  const otherIndices = (config.searchOthers ?? [])
+    .map((_, i) => i)
+    .filter((i) => config.searchOtherEnabled?.[i] !== false);
   return {
     ...config,
     sources: indices.map((i) => {
@@ -104,11 +127,19 @@ function activeConfig(config: Config): Config {
           sources: source.search.sources
             .filter((j) => indices.includes(j))
             .map((j) => indices.indexOf(j)),
-          others: hasSearch ? source.search.others : [],
+          others: hasSearch
+            ? source.search.others
+                .filter((j) => otherIndices.includes(j))
+                .map((j) => otherIndices.indexOf(j))
+            : [],
         },
       };
     }),
-    searchOthers: hasSearch ? config.searchOthers : [],
+    searchOthers: otherIndices.map((i) => config.searchOthers![i]),
+    searchOtherKeeps: otherIndices.map(
+      (i) => config.searchOtherKeeps?.[i] ?? 0,
+    ),
+    searchOtherEnabled: otherIndices.map(() => true),
   };
 }
 
@@ -221,14 +252,14 @@ export function initialDistribution(
       success += first.probability;
       continue;
     }
-    const kept = first.hand.map((n, i) =>
-      i > 0 &&
-      i <= config.sources.length &&
-      keepSources &&
-      config.sources[i - 1].keep
-        ? Math.min(n, config.sources[i - 1].keep)
-        : 0,
-    );
+    const kept = first.hand.map((n, i) => {
+      if (!keepSources || i === 0) return 0;
+      const cap =
+        i <= config.sources.length
+          ? config.sources[i - 1].keep
+          : (config.searchOtherKeeps?.[i - config.sources.length - 1] ?? 0);
+      return Math.min(n, cap);
+    });
     const replacementDeck = deck.map((n, i) => n - first.hand[i]);
     // Set aside all exchanged cards, draw replacements, then shuffle them back.
     for (const replacement of hands(replacementDeck, 4 - sum(kept))) {
@@ -358,7 +389,9 @@ export function calculateScenario(
   if (config.target.cost > horizon + Number(back))
     return { probability: 0, states: 0, ms: performance.now() - start };
   const opening = initial ?? initialDistribution(config, keep);
-  const hasSearch = config.sources.some((s) => s.kind === 'search');
+  const hasSearch =
+    config.sources.some((s) => s.kind === 'search') ||
+    Boolean(config.searchOthers?.length);
   const searchTypes = config.sources.map(
     (s) => new Set(searchTypeIndices(config, s)),
   );
@@ -514,7 +547,9 @@ export function calculateAll(
   validateConfig(config);
   config = activeConfig(config);
   const start = performance.now();
-  const same = !config.sources.some((s) => s.keep);
+  const same =
+    !config.sources.some((s) => s.keep) &&
+    !config.searchOtherKeeps?.some((n) => n > 0);
   const initialKeep = initialDistribution(config, true);
   const initialExchange = same
     ? initialKeep

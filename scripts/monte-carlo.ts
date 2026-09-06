@@ -24,12 +24,14 @@ function simulate(
   const filler = c.sources.length + 1 + (c.searchOthers?.length ?? 0);
   const original: number[] = Array(c.target.copies).fill(0);
   c.sources.forEach((s, i) =>
-    original.push(
-      ...Array(s.copies).fill(s.enabled === false ? filler : i + 1),
-    ),
+    original.push(...Array(s.enabled === false ? 0 : s.copies).fill(i + 1)),
   );
   (c.searchOthers ?? []).forEach((n, i) =>
-    original.push(...Array(n).fill(c.sources.length + 1 + i)),
+    original.push(
+      ...Array(c.searchOtherEnabled?.[i] === false ? 0 : n).fill(
+        c.sources.length + 1 + i,
+      ),
+    ),
   );
   while (original.length < 40) original.push(filler);
   if (original.length !== 40)
@@ -56,11 +58,12 @@ function simulate(
           type > 0 && type <= c.sources.length
             ? c.sources[type - 1]
             : undefined;
-        if (
-          keep &&
-          source &&
-          retained.filter((t) => t === type).length < source.keep
-        )
+        const cap =
+          source?.keep ??
+          (type > c.sources.length && type < filler
+            ? (c.searchOtherKeeps?.[type - c.sources.length - 1] ?? 0)
+            : 0);
+        if (keep && retained.filter((t) => t === type).length < cap)
           retained.push(type);
         else returned.push(type);
       }

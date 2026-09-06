@@ -21,6 +21,11 @@
   text-underline-offset: 3px;
   font-size: 13px;
 }
+footer .disclaimer {
+  flex-basis: 100%;
+  line-height: 1.9;
+  text-align: left;
+}
 .pwa-notice {
   margin-bottom: 16px;
 }
@@ -1573,6 +1578,143 @@ footer p {
     transition: none !important;
   }
 }
+/* Desktop readability; keep the existing mobile/tablet sizing unchanged. */
+@media (min-width: 1001px) {
+  main {
+    max-width: 1600px;
+  }
+  .site-header {
+    max-width: 1664px;
+  }
+  .workspace {
+    grid-template-columns: minmax(340px, 29%) minmax(0, 1fr);
+    gap: 28px;
+  }
+  .configuration .panel {
+    padding: 24px;
+  }
+  .source-card {
+    padding: 16px;
+  }
+  .section-title h2,
+  .results-heading h2 {
+    font-size: 20px;
+  }
+  .number-field > span,
+  .source-inputs .number-field > span,
+  .turn-field legend,
+  .select-label,
+  .source-title h3,
+  .source-enabled,
+  .source-kind,
+  .keep-count,
+  .search-targets legend,
+  .search-others h3,
+  .search-targets label,
+  .add-button,
+  .pin-button,
+  .text-button,
+  .view-tabs button,
+  .policy-picker,
+  .policy-picker button,
+  .visualization-heading h3,
+  .assumption-heading h2,
+  .stat-label,
+  .other-policy strong,
+  .help-link {
+    font-size: 14px;
+  }
+  .input-wrap input,
+  .source-inputs input {
+    font-size: 19px;
+    height: 48px;
+  }
+  .source-inputs input {
+    padding-right: 38px;
+  }
+  .input-wrap > span,
+  .source-inputs .input-wrap > span {
+    font-size: 12px;
+    top: 16px;
+  }
+  select,
+  .source-kind select,
+  .keep-count select {
+    font-size: 14px;
+    min-height: 42px;
+  }
+  .turn-selector button {
+    font-size: 17px;
+    min-height: 44px;
+  }
+  .turn-selector small,
+  .number-field small,
+  .step,
+  .section-title > span,
+  .field-note,
+  .section-copy,
+  .deck-summary,
+  .save-note,
+  .result-definition,
+  .stat-difference,
+  .stat-difference span:first-child:not(:last-child),
+  .other-policy,
+  .calculation-status,
+  .calculation-status button,
+  .chart-note,
+  .chart-turns button,
+  .legend,
+  .legend .pinned-legend,
+  .pinned-panel,
+  .pinned-panel summary,
+  .pinned-panel summary > span,
+  .assumptions > p,
+  .assumptions summary,
+  .assumptions ul,
+  .assumptions a,
+  footer > span,
+  footer p,
+  .pwa-notice small {
+    font-size: 13px;
+  }
+  .section-copy {
+    line-height: 1.8;
+  }
+  .search-targets label {
+    min-height: 34px;
+  }
+  .add-button {
+    min-height: 44px;
+  }
+  .source-enabled input,
+  .search-targets input {
+    width: 18px;
+    height: 18px;
+    flex-shrink: 0;
+  }
+  .results-heading,
+  .visualization-heading,
+  .policy-picker {
+    flex-wrap: wrap;
+  }
+  .tables {
+    grid-template-columns: repeat(auto-fit, minmax(min(100%, 280px), 1fr));
+  }
+  table,
+  th,
+  td,
+  tbody button {
+    font-size: 13px;
+  }
+  .chart-turns button {
+    min-height: 38px;
+  }
+  footer {
+    max-width: 1536px;
+    padding-inline: 24px;
+    flex-wrap: wrap;
+  }
+}
 .mobile-result-bar {
   display: none;
 }
@@ -1680,5 +1822,98 @@ footer p {
   }
   .assumptions p {
     line-height: 1.9;
+  }
+}
+
+@media (max-width: 760px) {
+  .number-field > span,
+  .source-inputs .number-field > span,
+  .turn-field legend,
+  .select-label,
+  .source-title h3,
+  .source-enabled,
+  .source-kind,
+  .keep-count,
+  .search-targets legend,
+  .search-others h3,
+  .search-targets label,
+  .add-button,
+  .visualization-heading h3,
+  .assumption-heading h2,
+  .help-link {
+    font-size: 13px;
+  }
+  .field-note,
+  .extra-panel .field-note,
+  .section-copy,
+  .sources-panel .section-copy,
+  .save-note,
+  .deck-summary,
+  .result-definition,
+  .chart-note,
+  .assumptions > p,
+  .assumptions summary,
+  .assumptions ul,
+  .assumptions a,
+  .pinned-panel,
+  .pinned-panel summary,
+  .pinned-panel summary > span,
+  .pin-button,
+  .text-button,
+  .view-tabs button,
+  .policy-picker,
+  .policy-picker button,
+  .legend,
+  .legend .pinned-legend,
+  .chart-turns button,
+  footer p,
+  footer > span,
+  .pwa-notice small {
+    font-size: 12px;
+  }
+  .calculation-status,
+  .status-detail,
+  .stat-difference,
+  .stat-difference span:first-child:not(:last-child),
+  .other-policy {
+    font-size: 11px;
+  }
+  .stat-label,
+  .other-policy strong {
+    font-size: 12px;
+  }
+  .source-kind select,
+  .keep-count select {
+    font-size: 16px;
+    min-height: 44px;
+  }
+  .source-kind,
+  .keep-count {
+    flex-wrap: wrap;
+  }
+  .search-targets label {
+    min-height: 34px;
+  }
+  .section-copy {
+    line-height: 1.8;
+  }
+  .results-heading,
+  .visualization-heading,
+  .policy-picker {
+    flex-wrap: wrap;
+  }
+  .other-policy {
+    flex-wrap: wrap;
+  }
+  .mobile-result-bar {
+    font-size: 11px;
+    gap: 6px;
+  }
+  .mobile-result-bar small,
+  .mobile-result-bar .jump-label {
+    font-size: 10px;
+  }
+  .tables th {
+    font-size: 12px;
   }
 }

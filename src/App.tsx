@@ -180,7 +180,7 @@ function ConfigSummary({ config }: { config: Config }) {
                   ...(s.search.target ? ['対象カード'] : []),
                   ...s.search.sources.map((j) => `ソース${j + 1}`),
                   ...s.search.others.map(
-                    (j) => `その他${j + 1}（${config.searchOthers?.[j]}枚）`,
+                    (j) => `カテゴリ${j + 1}（${config.searchOthers?.[j]}枚）`,
                   ),
                 ].join('・') || 'なし'}
               </span>
@@ -188,6 +188,13 @@ function ConfigSummary({ config }: { config: Config }) {
           </li>
         ))}
       </ul>
+      {config.searchOthers?.map((copies, i) => (
+        <p key={`other-keep-${i}`}>
+          カテゴリ{i + 1}：{copies}枚（初手に最大
+          {config.searchOtherKeeps?.[i] ?? 0}枚残す）
+          {config.searchOtherEnabled?.[i] === false && '（無効）'}
+        </p>
+      ))}
       <p>
         エクストラPP：
         {config.extra === 'greedy'
@@ -236,7 +243,8 @@ export function App() {
   const activeSources = enabledSources(config);
   const sourceCopies = activeSources.reduce((n, s) => n + s.copies, 0);
   const otherCopies = (config.searchOthers ?? []).reduce(
-    (n, copies) => n + copies,
+    (n, copies, i) =>
+      n + (config.searchOtherEnabled?.[i] === false ? 0 : copies),
     0,
   );
 
@@ -471,7 +479,7 @@ export function App() {
                       />
                     </div>
                     <label class="keep-count" for={`source-${i}-keep`}>
-                      <span>初手に残す枚数</span>
+                      <span>キープする枚数</span>
                       <select
                         id={`source-${i}-keep`}
                         value={source.keep}
@@ -531,6 +539,9 @@ export function App() {
                             <input
                               type="checkbox"
                               checked={source.search!.others.includes(j)}
+                              disabled={
+                                config.searchOtherEnabled?.[j] === false
+                              }
                               onChange={(e) =>
                                 toggleSearchTarget(
                                   i,
@@ -540,7 +551,7 @@ export function App() {
                                 )
                               }
                             />
-                            その他{j + 1}（{copies}枚）
+                            カテゴリ{j + 1}（{copies}枚）
                           </label>
                         ))}
                         <p class="field-note">
@@ -549,6 +560,51 @@ export function App() {
                           。残りが少なければ残っている分だけ加えます。
                           {source.search.unit === 'types' &&
                             '各登録グループを1種類として、1種類につき1枚加えます。別名のカードは分けて登録してください。'}
+                        </p>
+                        <button
+                          type="button"
+                          class="add-button"
+                          disabled={(config.searchOthers?.length ?? 0) >= 3}
+                          onClick={() =>
+                            setConfig((c) => {
+                              const index = c.searchOthers?.length ?? 0;
+                              if (index >= 3) return c;
+                              return {
+                                ...c,
+                                searchOthers: [...(c.searchOthers ?? []), 3],
+                                searchOtherEnabled: [
+                                  ...(c.searchOthers ?? []).map(
+                                    (_, j) =>
+                                      c.searchOtherEnabled?.[j] !== false,
+                                  ),
+                                  true,
+                                ],
+                                searchOtherKeeps: [
+                                  ...(c.searchOthers ?? []).map(
+                                    (_, j) => c.searchOtherKeeps?.[j] ?? 0,
+                                  ),
+                                  0,
+                                ],
+                                sources: c.sources.map((s, j) =>
+                                  j === i && s.search
+                                    ? {
+                                        ...s,
+                                        search: {
+                                          ...s.search,
+                                          others: [...s.search.others, index],
+                                        },
+                                      }
+                                    : s,
+                                ),
+                              };
+                            })
+                          }
+                        >
+                          <Icon name="plus" size={16} />
+                          カードカテゴリを追加
+                        </button>
+                        <p class="field-note">
+                          3枚で追加し、このサーチの対象にします。枚数は下の「カードカテゴリ」で変更できます。
                         </p>
                       </fieldset>
                     )}
@@ -575,7 +631,7 @@ export function App() {
                         cost: 2,
                         draw: 2,
                         copies: 3,
-                        keep: 3,
+                        keep: 0,
                         enabled: true,
                       },
                     ],
@@ -585,41 +641,84 @@ export function App() {
                 <Icon name="plus" size={16} />
                 ドローソースを追加
               </button>
-              {(config.sources.some((s) => s.kind === 'search') ||
-                Boolean(config.searchOthers?.length)) && (
+              {
                 <div class="search-others">
-                  <h3>その他のサーチ候補</h3>
+                  <h3>カードカテゴリ</h3>
                   <p class="field-note">
-                    対象・ソース以外の候補です。同じグループを複数のサーチで選ぶと、残り枚数を共有します。グループ同士に同じカードを重複登録しないでください。
+                    対象・ソース以外のカード群です。同じカテゴリを複数のサーチで選ぶと、残り枚数を共有します。同じカードを複数のカテゴリに登録しないでください。無効なカテゴリはサーチ・キープの対象から外れ、その枚数はデッキの「その他」に含まれます。
                   </p>
                   {(config.searchOthers ?? []).map((copies, j) => (
-                    <div class="search-other-row" key={j}>
-                      <NumberField
-                        id={`search-other-${j}-copies`}
-                        label={`その他${j + 1}の採用枚数`}
-                        value={copies}
-                        min={1}
-                        max={40}
-                        suffix="枚"
-                        onChange={(copies) =>
-                          setConfig((c) => ({
-                            ...c,
-                            searchOthers: c.searchOthers!.map((n, k) =>
-                              k === j ? copies : n,
-                            ),
-                          }))
-                        }
-                      />
-                      <button
-                        type="button"
-                        class="icon-button"
-                        aria-label={`その他${j + 1}を削除`}
-                        onClick={() =>
-                          setConfig((c) => removeSearchOther(c, j))
-                        }
-                      >
-                        <Icon name="close" size={16} />
-                      </button>
+                    <div class="search-other-group" key={j}>
+                      <label class="source-enabled">
+                        <input
+                          type="checkbox"
+                          aria-label={`カテゴリ${j + 1}を有効にする`}
+                          checked={config.searchOtherEnabled?.[j] !== false}
+                          onChange={(e) => {
+                            const enabled = e.currentTarget.checked;
+                            setConfig((c) => ({
+                              ...c,
+                              searchOtherEnabled: c.searchOthers!.map((_, k) =>
+                                k === j
+                                  ? enabled
+                                  : c.searchOtherEnabled?.[k] !== false,
+                              ),
+                            }));
+                          }}
+                        />
+                        カテゴリ{j + 1}を有効にする
+                      </label>
+                      <div class="search-other-row">
+                        <NumberField
+                          id={`search-other-${j}-copies`}
+                          label={`カテゴリ${j + 1}の採用枚数`}
+                          value={copies}
+                          min={1}
+                          max={40}
+                          suffix="枚"
+                          onChange={(copies) =>
+                            setConfig((c) => ({
+                              ...c,
+                              searchOthers: c.searchOthers!.map((n, k) =>
+                                k === j ? copies : n,
+                              ),
+                            }))
+                          }
+                        />
+                        <button
+                          type="button"
+                          class="icon-button"
+                          aria-label={`カテゴリ${j + 1}を削除`}
+                          onClick={() =>
+                            setConfig((c) => removeSearchOther(c, j))
+                          }
+                        >
+                          <Icon name="close" size={16} />
+                        </button>
+                      </div>
+                      <label class="keep-count" for={`search-other-${j}-keep`}>
+                        <span>キープする枚数</span>
+                        <select
+                          id={`search-other-${j}-keep`}
+                          value={config.searchOtherKeeps?.[j] ?? 0}
+                          disabled={config.searchOtherEnabled?.[j] === false}
+                          onChange={(e) => {
+                            const keep = Number(e.currentTarget.value);
+                            setConfig((c) => ({
+                              ...c,
+                              searchOtherKeeps: c.searchOthers!.map((_, k) =>
+                                k === j ? keep : (c.searchOtherKeeps?.[k] ?? 0),
+                              ),
+                            }));
+                          }}
+                        >
+                          {[0, 1, 2, 3].map((n) => (
+                            <option key={n} value={n}>
+                              {n}枚まで
+                            </option>
+                          ))}
+                        </select>
+                      </label>
                     </div>
                   ))}
                   <button
@@ -627,17 +726,32 @@ export function App() {
                     class="add-button"
                     disabled={(config.searchOthers?.length ?? 0) >= 3}
                     onClick={() =>
-                      setConfig((c) => ({
-                        ...c,
-                        searchOthers: [...(c.searchOthers ?? []), 3],
-                      }))
+                      setConfig((c) => {
+                        if ((c.searchOthers?.length ?? 0) >= 3) return c;
+                        return {
+                          ...c,
+                          searchOthers: [...(c.searchOthers ?? []), 3],
+                          searchOtherKeeps: [
+                            ...(c.searchOthers ?? []).map(
+                              (_, i) => c.searchOtherKeeps?.[i] ?? 0,
+                            ),
+                            0,
+                          ],
+                          searchOtherEnabled: [
+                            ...(c.searchOthers ?? []).map(
+                              (_, i) => c.searchOtherEnabled?.[i] !== false,
+                            ),
+                            true,
+                          ],
+                        };
+                      })
                     }
                   >
                     <Icon name="plus" size={16} />
-                    その他の候補を追加
+                    カードカテゴリを単独で追加
                   </button>
                 </div>
-              )}
+              }
               <div class="deck-summary">
                 <span>
                   デッキ <strong>40</strong>枚
@@ -755,7 +869,7 @@ export function App() {
                           </>
                         ) : (
                           <span>
-                            {keep ? '指定ソースを残す' : '対象がなければ全交換'}
+                            {keep ? '指定枚数を残す' : '対象がなければ全交換'}
                           </span>
                         )}
                       </div>
@@ -949,7 +1063,7 @@ export function App() {
                     40枚デッキ、初手4枚、先攻・後攻とも各ターン1枚ドロー。
                   </li>
                   <li>
-                    初手に対象があれば保持。対象がない場合に「指定枚数までソースを残す」と「すべて交換」を比較します。交換するカードは引き直し後に山札へ戻します。
+                    初手に対象カードがあればキープします。対象カードがない場合に「ドローソース・サーチ・カードカテゴリをそれぞれ指定枚数までキープ」と「すべて交換」を比較します。無効なソース・カードカテゴリはキープしません。マリガンでは、最初の手札4枚を除いた山札36枚から引き直し、その後に交換したカードを山札へ戻す前提です。交換したカードそのものを引き直すことはありませんが、同名の別のカードは引くことがあります。
                   </li>
                   <li>
                     手札から、残りPP内で合計ドロー枚数が最大の組み合わせを選びます。同点なら低い合計コストを優先。組み合わせ内は低コスト、多ドロー、登録順で使用し、1枚使うたびに選び直します。
@@ -1023,8 +1137,12 @@ export function App() {
           <a href="./licenses.md">第三者ライセンス</a>
         </p>
         <span>SVWB ドロー確率計算</span>
-        <p>
-          非公式の確率計算ツールです。ゲーム内の勝率を示すものではありません。
+        <p class="disclaimer">
+          本ツールは個人が開発・運営する非公式の確率計算ツールです。Shadowverse:
+          Worlds
+          Beyondの公式サービスではなく、株式会社Cygamesおよび本作の開発・運営元とは一切関係ありません。これらの権利者による公認・監修・協賛を受けたものではありません。
+          <br />
+          表示される確率は本ツールの計算条件に基づくものであり、ゲーム内の勝率を示すものではありません。
         </p>
       </footer>
       <a class="mobile-result-bar" href="#results-heading">

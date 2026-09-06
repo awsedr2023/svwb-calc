@@ -37,6 +37,8 @@ test('source toggles preserve settings, comparisons and saved state', async ({
   await page.goto('./');
   await expect(page.getByRole('status')).toContainText('計算完了');
   const toggle = page.getByRole('checkbox', { name: 'ソース1を有効にする' });
+  await page.locator('#source-0-keep').selectOption('3');
+  await expect(page.getByRole('status')).toContainText('計算完了');
   await expect(toggle).toBeChecked();
   await page.getByRole('button', { name: '比較用に固定' }).click();
   await toggle.uncheck();
@@ -64,6 +66,7 @@ test('calculate, compare, switch views and persist inputs', async ({
   const errors: string[] = [];
   page.on('pageerror', (e) => errors.push(e.message));
   await page.goto('./');
+  await page.locator('#source-0-keep').selectOption('3');
   await expect(page.getByRole('status')).toContainText('計算完了');
   await expect(page.locator('.stat-value').first()).toContainText('73.76');
   await expect(
@@ -137,6 +140,7 @@ test('input edits cancel old workers and leave no stale results', async ({
   page,
 }) => {
   await page.goto('./');
+  await page.locator('#source-0-keep').selectOption('3');
   await expect(page.getByRole('status')).toContainText('計算完了');
   await page.locator('#target-copies').fill('1');
   await expect(
