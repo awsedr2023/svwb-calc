@@ -1,0 +1,33 @@
+{
+  "name": "svwb-draw-calc",
+  "version": "0.1.0",
+  "private": true,
+  "license": "MIT",
+  "type": "module",
+  "engines": {
+    "node": ">=22.12.0"
+  },
+  "scripts": {
+    "dev": "vite --host 127.0.0.1",
+    "build": "tsc --noEmit && vite build",
+    "preview": "vite preview --host 127.0.0.1",
+    "test": "tsx --test tests/*.test.ts",
+    "bench": "tsx scripts/bench.ts",
+    "verify:mc": "tsx scripts/monte-carlo.ts",
+    "test:ui": "playwright test",
+    "format": "prettier --write src tests scripts *.ts *.json index.html README.md docs .github",
+    "format:check": "prettier --check src tests scripts *.ts *.json index.html README.md docs .github"
+  },
+  "dependencies": {
+    "preact": "^10.29.8"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.63.0",
+    "@preact/preset-vite": "^2.10.6",
+    "@types/node": "^26.4.1",
+    "prettier": "^3.9.6",
+    "tsx": "^4.23.13",
+    "typescript": "^7.0.2",
+    "vite": "^8.2.2"
+  }
+}
