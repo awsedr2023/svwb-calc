@@ -202,6 +202,12 @@ interface Action {
 export interface Limits {
   maxStates?: number;
   maxMs?: number;
+  /** Diagnostic switches; all enabled by default. Never persisted in UI. */
+  pruning?:
+    | false
+    | Partial<
+        Record<'extraPP' | 'terminalPP' | 'ordering' | 'bounds', boolean>
+      >;
 }
 interface ScenarioOptions extends Limits {
   horizon?: number;
@@ -380,6 +386,7 @@ export function calculateScenario(
     keep = true,
     maxStates = config.maxStates ?? 400000,
     maxMs = 12000,
+    pruning,
     initial,
   }: ScenarioOptions = {},
 ) {
@@ -388,6 +395,15 @@ export function calculateScenario(
   if (!Number.isInteger(horizon) || horizon < 1 || horizon > 5)
     throw new Error('計算対象は1〜5ターンです。');
   const start = performance.now();
+  const enabled = (name: 'extraPP' | 'terminalPP' | 'ordering' | 'bounds') =>
+    config.extra === 'optimal' &&
+    pruning !== false &&
+    pruning?.[name] !== false;
+  const pruneExtra = enabled('extraPP'),
+    mergeTerminal = enabled('terminalPP'),
+    orderActions =
+      enabled('ordering') && config.sources.some((s) => s.kind === 'search'),
+    pruneBounds = enabled('bounds');
   if (config.target.cost > horizon + Number(back))
     return { probability: 0, states: 0, ms: performance.now() - start };
   const opening = initial ?? initialDistribution(config, keep);
@@ -397,6 +413,7 @@ export function calculateScenario(
   const searchTypes = config.sources.map(
     (s) => new Set(searchTypeIndices(config, s)),
   );
+  const naturalOrder = config.sources.map((_, i) => i);
   const memo = new Map<number | string, number>(),
     plans = new Map<number, Action>();
   let visited = 0;
@@ -417,8 +434,14 @@ export function calculateScenario(
     pending: number,
     searchMode = -1,
     selectedTypes = 0,
+    cutoff = -1,
   ): number {
     check();
+    // On the final turn there is no future use for a saved extra PP.
+    if (mergeTerminal && turn === horizon && extra) {
+      pp++;
+      extra = false;
+    }
     const size = sum(deck);
     // The whole draw effect must resolve. Deck-out during it is a failure.
     if (pending > size) return 0;
@@ -461,6 +484,7 @@ export function calculateScenario(
       // A search with no candidates simply finishes; it is not a deck-out draw.
       if (eligible === 0 && searchMode >= 0)
         return solve(deck, hand, turn, pp, extra, 0);
+      let remaining = eligible;
       for (let i = 0; i < deck.length; i++) {
         if (
           !deck[i] ||
@@ -488,13 +512,45 @@ export function calculateScenario(
               ? selectedTypes | (1 << i)
               : 0,
           );
+        remaining -= deck[i];
+        // Each unvisited outcome contributes at most its probability mass.
+        // Return only to the competing decision node; NEVER memoize a bound.
+        // A conservative margin avoids cutting ties due to roundoff.
+        if (
+          pruneBounds &&
+          remaining > 0 &&
+          value + remaining / eligible < cutoff - 1e-12
+        )
+          return value + remaining / eligible;
       }
     } else if (config.extra === 'optimal') {
       // Bellman decision node: maximize expected success BEFORE seeing the next
       // random card. Waiting preserves held sources and the unused extra PP.
-      value =
-        turn < horizon ? solve(deck, hand, turn + 1, turn + 1, extra, 1) : 0;
-      for (let i = 0; i < config.sources.length && value < 1; i++) {
+      const wait = () =>
+        turn < horizon
+          ? solve(deck, hand, turn + 1, turn + 1, extra, 1, -1, 0, value)
+          : 0;
+      value = orderActions ? 0 : wait();
+      const order = orderActions ? [...naturalOrder] : naturalOrder;
+      if (orderActions) {
+        // Cheap ordering only, not pruning by this heuristic. Target-only
+        // searches come first; ordinary draws use a rough immediate-hit score.
+        const score = (i: number) => {
+          const s = config.sources[i];
+          if (!hand[i + 1] || s.cost > pp + Number(extra)) return -1;
+          if (s.kind !== 'search')
+            return Math.min(1, (s.draw * deck[0]) / size);
+          if (!s.search?.target) return 0;
+          const pool = [...searchTypes[i]].reduce((n, j) => n + deck[j], 0);
+          return pool
+            ? Math.min(1, (deck[0] / pool) * searchCapacity(config, s, deck))
+            : 0;
+        };
+        const scores = order.map(score);
+        order.sort((a, b) => scores[b] - scores[a]);
+      }
+      for (const i of order) {
+        if (value >= 1) break;
         const source = config.sources[i];
         if (!hand[i + 1]) continue;
         const amount =
@@ -504,6 +560,9 @@ export function calculateScenario(
         if (!amount) continue;
         for (const activate of [false, true]) {
           if (activate && !extra) continue;
+          // If this action is already affordable, activation can be delayed
+          // until the next decision without losing any available action.
+          if (pruneExtra && activate && source.cost <= pp) continue;
           const remainingPP = pp + Number(activate) - source.cost;
           const remainingExtra = extra && !activate;
           if (remainingPP < 0) continue;
@@ -526,11 +585,14 @@ export function calculateScenario(
               remainingExtra,
               amount,
               source.kind === 'search' ? i : -1,
+              0,
+              value,
             ),
           );
           if (value === 1) break;
         }
       }
+      if (orderActions && value < 1) value = Math.max(value, wait());
     } else {
       let heldState = 0;
       for (let i = 1; i <= config.sources.length; i++)

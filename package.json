@@ -13,6 +13,7 @@
     "preview": "vite preview --host 127.0.0.1",
     "test": "tsx --test tests/*.test.ts",
     "bench": "tsx scripts/bench.ts",
+    "verify:pruning": "tsx scripts/pruning.ts",
     "verify:mc": "tsx scripts/monte-carlo.ts",
     "test:ui": "playwright test",
     "format": "prettier --write src tests scripts *.ts *.json index.html README.md docs .github",

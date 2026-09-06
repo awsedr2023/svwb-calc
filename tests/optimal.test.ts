@@ -99,13 +99,20 @@ function oracle(
   return draw(deck, hand, 1, 1, back, 1);
 }
 
-function exact(c: Config, deck: number[], hand: number[], back = false) {
+function exact(
+  c: Config,
+  deck: number[],
+  hand: number[],
+  back = false,
+  pruning?: import('../src/engine').Limits['pruning'],
+) {
   const counts = (cards: number[]) =>
     Array.from(
       { length: c.sources.length + (c.searchOthers?.length ?? 0) + 2 },
       (_, type) => cards.filter((x) => x === type).length,
     );
   return calculateScenario(c, {
+    pruning,
     back,
     initial: {
       success: 0,
@@ -228,7 +235,16 @@ test('optimal agrees with independent physical-card expectimax across mixed sear
                 };
                 const deck = [0, 1, 2, 3, 3, 4],
                   hand = [1, 2];
-                close(exact(c, deck, hand, back), oracle(c, deck, hand, back));
+                const expected = oracle(c, deck, hand, back);
+                for (const pruning of [
+                  false,
+                  {},
+                  { extraPP: false },
+                  { terminalPP: false },
+                  { ordering: false },
+                  { bounds: false },
+                ] as const)
+                  close(exact(c, deck, hand, back, pruning), expected);
                 cases++;
               }
   assert.equal(cases, 192);
