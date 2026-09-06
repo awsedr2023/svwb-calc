@@ -29,6 +29,17 @@ export function validateConfig(value: unknown): Config {
     throw new Error('エクストラPPの方針が不正です。');
   if (!Array.isArray(c.sources) || c.sources.length > 5)
     throw new Error('ドローソースは最大5種類です。');
+  const validName = (name: unknown) =>
+    typeof name === 'string' && name.length <= 80;
+  if (
+    c.searchOtherNames !== undefined &&
+    (!Array.isArray(c.searchOtherNames) ||
+      c.searchOtherNames.length > (c.searchOthers?.length ?? 0) ||
+      !c.searchOtherNames.every(validName))
+  )
+    throw new Error('カードカテゴリ名は80文字以内で入力してください。');
+  if (c.sources.some((s) => s?.name !== undefined && !validName(s.name)))
+    throw new Error('ソース名は80文字以内で入力してください。');
   if (
     c.searchOthers !== undefined &&
     (!Array.isArray(c.searchOthers) ||
@@ -138,6 +149,9 @@ function activeConfig(config: Config): Config {
       };
     }),
     searchOthers: otherIndices.map((i) => config.searchOthers![i]),
+    searchOtherNames: otherIndices.map(
+      (i) => config.searchOtherNames?.[i] ?? '',
+    ),
     searchOtherKeeps: otherIndices.map(
       (i) => config.searchOtherKeeps?.[i] ?? 0,
     ),

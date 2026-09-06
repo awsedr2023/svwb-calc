@@ -1942,3 +1942,68 @@ footer p {
 .computation-settings .help-link {
   padding-block: 8px;
 }
+.card-name {
+  display: grid;
+  gap: 8px;
+  margin-block: 14px;
+  min-width: 0;
+  font-size: 13px;
+}
+.card-name input {
+  width: 100%;
+  min-width: 0;
+  padding: 10px 12px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  font: inherit;
+  font-size: 16px;
+}
+.source-title h3 {
+  min-width: 0;
+  flex: 1 1 0;
+  overflow-wrap: anywhere;
+}
+.source-title .source-enabled,
+.source-title .source-symbol,
+.source-title .remove-source {
+  flex-shrink: 0;
+}
+.source-title .source-enabled {
+  white-space: nowrap;
+}
+.source-enabled input {
+  flex-shrink: 0;
+}
+.search-targets label,
+.pinned-panel {
+  overflow-wrap: anywhere;
+}
+.editable-name {
+  border: 0;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  padding: 6px 0;
+  max-width: 100%;
+  overflow-wrap: anywhere;
+  cursor: text;
+}
+.editable-name:hover,
+.editable-name:focus-visible {
+  text-decoration: underline dotted;
+  text-underline-offset: 4px;
+}
+.name-editor {
+  width: 100%;
+  min-width: 0;
+  padding: 8px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  font: inherit;
+  font-size: 16px;
+}
+.category-name {
+  margin-block: 10px;
+  font-weight: 600;
+}

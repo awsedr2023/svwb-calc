@@ -1,4 +1,10 @@
-import { useCallback, useContext, useEffect, useState } from 'preact/hooks';
+import {
+  useCallback,
+  useContext,
+  useEffect,
+  useRef,
+  useState,
+} from 'preact/hooks';
 import { createContext } from 'preact';
 import type { ComponentChildren } from 'preact';
 import type { Config, DrawSource, Snapshot } from './types';
@@ -150,6 +156,77 @@ function SectionTitle({
   );
 }
 
+const sourceName = (config: Config, i: number) =>
+  config.sources[i]?.name?.trim() || `ソース${i + 1}`;
+const categoryName = (config: Config, i: number) =>
+  config.searchOtherNames?.[i]?.trim() || `カテゴリ${i + 1}`;
+
+function EditableName({
+  id,
+  value,
+  fallback,
+  onChange,
+}: {
+  id: string;
+  value?: string;
+  fallback: string;
+  onChange: (name: string) => void;
+}) {
+  const [editing, setEditing] = useState(false);
+  const [draft, setDraft] = useState('');
+  const input = useRef<HTMLInputElement>(null);
+  const cancelled = useRef(false);
+  useEffect(() => {
+    if (editing) {
+      input.current?.focus();
+      input.current?.select();
+    }
+  }, [editing]);
+  return editing ? (
+    <input
+      class="name-editor"
+      id={id}
+      ref={input}
+      type="text"
+      maxLength={80}
+      aria-label={`${fallback}の名前`}
+      placeholder={fallback}
+      value={draft}
+      onInput={(e) => setDraft(e.currentTarget.value)}
+      onBlur={() => {
+        if (!cancelled.current) onChange(draft.trim());
+        setEditing(false);
+      }}
+      onKeyDown={(e) => {
+        if (e.isComposing || e.keyCode === 229) return;
+        if (e.key === 'Enter') {
+          e.preventDefault();
+          e.currentTarget.blur();
+        }
+        if (e.key === 'Escape') {
+          e.preventDefault();
+          cancelled.current = true;
+          e.currentTarget.blur();
+        }
+      }}
+    />
+  ) : (
+    <button
+      class="editable-name"
+      type="button"
+      aria-label={`${value?.trim() || fallback}の名前を編集`}
+      title="クリック・タップで名前を編集"
+      onClick={() => {
+        cancelled.current = false;
+        setDraft(value ?? '');
+        setEditing(true);
+      }}
+    >
+      {value?.trim() || fallback}
+    </button>
+  );
+}
+
 function ConfigSummary({ config }: { config: Config }) {
   return (
     <>
@@ -160,7 +237,7 @@ function ConfigSummary({ config }: { config: Config }) {
       <ul>
         {config.sources.map((s, i) => (
           <li key={i}>
-            ソース{i + 1}：{s.cost}PP → {s.draw}
+            {sourceName(config, i)}：{s.cost}PP → {s.draw}
             {s.kind === 'search'
               ? `${s.search?.unit === 'types' ? '種類' : '枚'}サーチ`
               : 'ドロー'}{' '}
@@ -172,9 +249,10 @@ function ConfigSummary({ config }: { config: Config }) {
                 / 候補：
                 {[
                   ...(s.search.target ? ['対象カード'] : []),
-                  ...s.search.sources.map((j) => `ソース${j + 1}`),
+                  ...s.search.sources.map((j) => sourceName(config, j)),
                   ...s.search.others.map(
-                    (j) => `カテゴリ${j + 1}（${config.searchOthers?.[j]}枚）`,
+                    (j) =>
+                      `${categoryName(config, j)}（${config.searchOthers?.[j]}枚）`,
                   ),
                 ].join('・') || 'なし'}
               </span>
@@ -184,7 +262,7 @@ function ConfigSummary({ config }: { config: Config }) {
       </ul>
       {config.searchOthers?.map((copies, i) => (
         <p key={`other-keep-${i}`}>
-          カテゴリ{i + 1}：{copies}枚（初手に最大
+          {categoryName(config, i)}：{copies}枚（初手に最大
           {config.searchOtherKeeps?.[i] ?? 0}枚残す）
           {config.searchOtherEnabled?.[i] === false && '（無効）'}
         </p>
@@ -371,11 +449,18 @@ export function App() {
                       <span class="source-symbol">
                         <Icon name="cards" size={15} />
                       </span>
-                      <h3>ソース {String(i + 1).padStart(2, '0')}</h3>
+                      <h3>
+                        <EditableName
+                          id={`source-${i}-name`}
+                          value={source.name}
+                          fallback={`ソース${i + 1}`}
+                          onChange={(name) => updateSource(i, { name })}
+                        />
+                      </h3>
                       <label class="source-enabled">
                         <input
                           type="checkbox"
-                          aria-label={`ソース${i + 1}を有効にする`}
+                          aria-label={`${sourceName(config, i)}を有効にする`}
                           checked={source.enabled !== false}
                           onChange={(e) =>
                             updateSource(i, {
@@ -388,7 +473,7 @@ export function App() {
                       <button
                         class="icon-button remove-source"
                         type="button"
-                        aria-label={`ソース${i + 1}を削除`}
+                        aria-label={`${sourceName(config, i)}を削除`}
                         onClick={() => setConfig((c) => removeSource(c, i))}
                       >
                         <Icon name="close" size={16} />
@@ -525,7 +610,7 @@ export function App() {
                                 )
                               }
                             />
-                            ソース{j + 1}（{candidate.copies}枚
+                            {sourceName(config, j)}（{candidate.copies}枚
                             {candidate.enabled === false ? '・無効' : ''}）
                           </label>
                         ))}
@@ -546,7 +631,7 @@ export function App() {
                                 )
                               }
                             />
-                            カテゴリ{j + 1}（{copies}枚）
+                            {categoryName(config, j)}（{copies}枚）
                           </label>
                         ))}
                         <p class="field-note">
@@ -644,10 +729,27 @@ export function App() {
                   </p>
                   {(config.searchOthers ?? []).map((copies, j) => (
                     <div class="search-other-group" key={j}>
+                      <div class="category-name">
+                        <EditableName
+                          id={`search-other-${j}-name`}
+                          fallback={`カテゴリ${j + 1}`}
+                          value={config.searchOtherNames?.[j] ?? ''}
+                          onChange={(name) => {
+                            setConfig((c) => ({
+                              ...c,
+                              searchOtherNames: c.searchOthers!.map((_, k) =>
+                                k === j
+                                  ? name
+                                  : (c.searchOtherNames?.[k] ?? ''),
+                              ),
+                            }));
+                          }}
+                        />
+                      </div>
                       <label class="source-enabled">
                         <input
                           type="checkbox"
-                          aria-label={`カテゴリ${j + 1}を有効にする`}
+                          aria-label={`${categoryName(config, j)}を有効にする`}
                           checked={config.searchOtherEnabled?.[j] !== false}
                           onChange={(e) => {
                             const enabled = e.currentTarget.checked;
@@ -661,12 +763,12 @@ export function App() {
                             }));
                           }}
                         />
-                        カテゴリ{j + 1}を有効にする
+                        {categoryName(config, j)}を有効にする
                       </label>
                       <div class="search-other-row">
                         <NumberField
                           id={`search-other-${j}-copies`}
-                          label={`カテゴリ${j + 1}の採用枚数`}
+                          label={`${categoryName(config, j)}の採用枚数`}
                           value={copies}
                           min={1}
                           max={40}
@@ -683,7 +785,7 @@ export function App() {
                         <button
                           type="button"
                           class="icon-button"
-                          aria-label={`カテゴリ${j + 1}を削除`}
+                          aria-label={`${categoryName(config, j)}を削除`}
                           onClick={() =>
                             setConfig((c) => removeSearchOther(c, j))
                           }

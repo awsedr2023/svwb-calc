@@ -45,7 +45,7 @@ export function calculationKey(config: Config): string {
     maxStates: config.maxStates ?? 400000,
     target: config.target,
     extra: config.extra,
-    sources: config.sources,
+    sources: config.sources.map(({ name: _name, ...source }) => source),
     searchOthers: config.searchOthers,
     searchOtherKeeps: config.searchOtherKeeps,
     searchOtherEnabled: config.searchOtherEnabled,
@@ -73,6 +73,7 @@ export function removeSearchOther(config: Config, index: number): Config {
   return {
     ...config,
     searchOthers: config.searchOthers?.filter((_, i) => i !== index),
+    searchOtherNames: config.searchOtherNames?.filter((_, i) => i !== index),
     searchOtherKeeps: config.searchOtherKeeps?.filter((_, i) => i !== index),
     searchOtherEnabled: config.searchOtherEnabled?.filter(
       (_, i) => i !== index,
